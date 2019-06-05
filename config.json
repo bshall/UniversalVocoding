@@ -17,11 +17,16 @@
         "embedding_dim": 256,
         "rnn_channels": 896,
         "fc_channels": 512,
-        "learning_rate": 1e-4,
-        "batch_size": 16,
+        "learning_rate": 4e-4,
+        "schedule": {
+            "step_size": 25000,
+            "gamma": 0.5
+        },
+        "batch_size": 32,
         "checkpoint_interval": 25000,
-        "num_steps": 200000,
-        "sample_frames": 24,
+        "num_steps": 150000,
+        "sample_frames": 40,
+        "audio_slice_frames": 8,
         "generate": {
             "batched": true,
             "target": 8000,

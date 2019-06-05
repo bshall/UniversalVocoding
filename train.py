@@ -17,7 +17,7 @@ from model import Vocoder
 def save_checkpoint(model, step, checkpoint_dir):
     checkpoint_state = {
         "model": model.state_dict(),
-        "steps": step}
+        "step": step}
     checkpoint_path = os.path.join(
         checkpoint_dir, "model.ckpt-{}.pt".format(step))
     torch.save(checkpoint_state, checkpoint_path)
@@ -38,22 +38,24 @@ def train_fn(args, params):
     print(model)
 
     optimizer = optim.Adam(model.parameters(), lr=params["vocoder"]["learning_rate"])
+    scheduler = optim.lr_scheduler.StepLR(optimizer, params["vocoder"]["schedule"]["step_size"], params["vocoder"]["schedule"]["gamma"])
 
     if args.resume is not None:
         print("Resume checkpoint from: {}:".format(args.resume))
         checkpoint = torch.load(args.resume, map_location=lambda storage, loc: storage)
         model.load_state_dict(checkpoint["model"])
-        global_step = checkpoint["steps"]
+        global_step = checkpoint["step"]
     else:
         global_step = 0
 
     train_dataset = VocoderDataset(meta_file=os.path.join(args.data_dir, "train.txt"),
                                    sample_frames=params["vocoder"]["sample_frames"],
+                                   audio_slice_frames=params["vocoder"]["audio_slice_frames"],
                                    hop_length=params["preprocessing"]["hop_length"],
                                    bits=params["preprocessing"]["bits"])
 
     train_dataloader = DataLoader(train_dataset, batch_size=params["vocoder"]["batch_size"],
-                                  shuffle=True, num_workers=args.num_workers,
+                                  shuffle=True, num_workers=1,
                                   pin_memory=True)
 
     num_epochs = params["vocoder"]["num_steps"] // len(train_dataloader) + 1
@@ -71,6 +73,7 @@ def train_fn(args, params):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            scheduler.step()
 
             running_loss += loss.item()
             average_loss = running_loss / i

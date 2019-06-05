@@ -90,8 +90,13 @@ class Vocoder(nn.Module):
         self.fc2 = nn.Linear(fc_channels, self.quantization_channels)
 
     def forward(self, x, mels):
+        sample_frames = mels.size(1)
+        audio_slice_frames = x.size(1) // self.hop_length
+        pad = (sample_frames - audio_slice_frames) // 2
+
         mels, _ = self.rnn1(mels)
         mels, _ = self.rnn2(mels)
+        mels = mels[:, pad:pad + audio_slice_frames, :]
 
         mels = F.interpolate(mels.transpose(1, 2), scale_factor=self.hop_length)
         mels = mels.transpose(1, 2)

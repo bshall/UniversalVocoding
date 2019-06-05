@@ -27,8 +27,12 @@ def preemphasis(x, preemph):
     return scipy.signal.lfilter([1, -preemph], [1], x)
 
 
-def melspectrogram(y, sample_rate, num_mels, num_fft, preemph, min_level_db, hop_length, win_length, fmin):
-    y = preemphasis(y, preemph=preemph)
+def deemphasis(x, preemph):
+    return scipy.signal.lfilter([1], [1, -preemph], x)
+
+
+def melspectrogram(y, preemph, sample_rate, num_mels, num_fft, min_level_db, hop_length, win_length, fmin):
+    y = preemphasis(y, preemph)
     S = np.abs(librosa.stft(y, n_fft=num_fft, hop_length=hop_length, win_length=win_length))
     mel_basis = librosa.filters.mel(sample_rate, num_fft, n_mels=num_mels, fmin=fmin)
     S = np.dot(mel_basis, S)
