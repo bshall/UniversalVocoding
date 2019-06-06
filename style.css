@@ -21,7 +21,14 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @media only screen and (min-width: 64em) {
-    header, main {
+    header {
+        max-width: 64rem;
+        padding: 2rem 6rem 0rem 6rem;
+        margin: 0 auto;
+        font-size: 1.1rem;
+    }
+
+    main {
         max-width: 64rem;
         padding: 2rem 6rem;
         margin: 0 auto;
@@ -30,14 +37,24 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @media only screen and (min-width: 42em) and (max-width: 64em) {
-    header, main {
+    header {
+        padding: 2rem 4rem 0rem 4rem;
+        font-size: 1.1rem;
+    }
+
+    main {
         padding: 2rem 4rem;
         font-size: 1.1rem;
     }
 }
 
 @media only screen and (max-width: 42em) {
-    header, main {
+    header {
+        padding: 2rem 1rem 0rem 1rem;
+        font-size: 1rem;
+    }
+
+    main {
         padding: 2rem 1rem;
         font-size: 1rem;
     }
@@ -71,8 +88,28 @@ a {
 
 a:hover {
     text-decoration: underline;
- }
+}
 
- ul {
+ul {
     margin: 0;
- }
+}
+
+table {
+    display: block;
+    width: 100%;
+    overflow: auto;
+    word-break: normal;
+    word-break: keep-all; // For Firefox to horizontally scroll wider tables.
+    -webkit-overflow-scrolling: touch;
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+th {
+    font-weight: bold;
+}
+
+th, td {
+    padding: 0.5rem 1rem;
+    border: 1px solid #e9ebec;
+}
