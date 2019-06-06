@@ -1,11 +1,31 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Robust Universal Neural Vocoding</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <title>Robust Universal Neural Vocoding</title>
 </head>
 <body>
-
-<h1>A PyTorch implementation of Robust Universal Neural Vocoding</h1>
-
+    <header>
+        <h1>A PyTorch implementation of Robust Universal Neural Vocoding</h1>
+        <p>A speaker independent vocoder trained the ZeroSpeech 2019: TTS without T English dataset</p>
+        <hr>
+    </header>
+    <main>
+        <p>This page contains audio samples for a PyTorch implementation of the paper:
+            <a href="https://arxiv.org/abs/1811.06292">"Robust Universal Neural Vocoding", J. Lorenzo-Trueba Jaime et al, (2018).</a>
+        </p>
+        <h4>Notable differences from the paper:</h4>
+        <ul>
+            <li>Trained on 16kHz audio from 102 different speakers (<a href="https://zerospeech.com/2019/">ZeroSpeech 2019: TTS without T</a> English dataset)</li>
+            <li>The model generates 9-bit mu-law audio (planning on training a 10-bit model soon)</li>
+            <li>Uses an embedding layer instead of one-hot encoding</li>
+        </ul>
+        <h2>In-Domain Speakers</h2>
+        <hr>
+        <h3>V001</h3>
+        <h3>V002</h3>
+        <h2>Out-of-Domain Speakers</h2>
+        <hr>
+    </main>
 </body>
 </html>
