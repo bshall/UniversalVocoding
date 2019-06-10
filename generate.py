@@ -10,11 +10,10 @@ from utils import load_wav, save_wav, melspectrogram
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--resume", type=str, help="Checkpoint path to resume")
+    parser.add_argument("--checkpoint", type=str, help="Checkpoint path to resume")
     parser.add_argument("--data-dir", type=str, default="./data")
     parser.add_argument("--gen-dir", type=str, default="./generated")
-    parser.add_argument("--wav_path", type=str)
-    parser.add_argument("--batched", action='store_true')
+    parser.add_argument("--wav-path", type=str)
     args = parser.parse_args()
     with open("config.json") as f:
         params = json.load(f)
@@ -31,8 +30,8 @@ if __name__ == "__main__":
                     hop_length=params["preprocessing"]["hop_length"])
     model.to(device)
 
-    print("Resume checkpoint from: {}:".format(args.resume))
-    checkpoint = torch.load(args.resume, map_location=lambda storage, loc: storage)
+    print("Load checkpoint from: {}:".format(args.checkpoint))
+    checkpoint = torch.load(args.checkpoint, map_location=lambda storage, loc: storage)
     model.load_state_dict(checkpoint["model"])
     model_step = checkpoint["steps"]
 
@@ -42,14 +41,11 @@ if __name__ == "__main__":
     mel = melspectrogram(wav, sample_rate=params["preprocessing"]["sample_rate"],
                          num_mels=params["preprocessing"]["num_mels"],
                          num_fft=params["preprocessing"]["num_fft"],
-                         preemph=params["preprocessing"]["preemph"],
                          min_level_db=params["preprocessing"]["min_level_db"],
                          hop_length=params["preprocessing"]["hop_length"],
                          win_length=params["preprocessing"]["win_length"],
                          fmin=params["preprocessing"]["fmin"])
     mel = torch.FloatTensor(mel).unsqueeze(0).to(device)
-    output = model.generate(mel, args.batched,
-                            params["vocoder"]["generate"]["target"],
-                            params["vocoder"]["generate"]["overlap"])
+    output = model.generate(mel)
     path = os.path.join(args.gen_dir, "gen_{}_model_steps_{}.wav".format(utterance_id, model_step))
     save_wav(path, output, params["preprocessing"]["sample_rate"])

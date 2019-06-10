@@ -6,7 +6,7 @@ from multiprocessing import cpu_count
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from tqdm import tqdm
-from utils import load_wav, mulaw_encode, melspectrogram, preemphasis
+from utils import load_wav, mulaw_encode, melspectrogram
 import random
 import glob
 from itertools import chain
@@ -18,7 +18,6 @@ def process_wav(wav_path, audio_path, mel_path, params):
     mel = melspectrogram(wav, sample_rate=params["preprocessing"]["sample_rate"],
                          num_mels=params["preprocessing"]["num_mels"],
                          num_fft=params["preprocessing"]["num_fft"],
-                         preemph=params["preprocessing"]["preemph"],
                          min_level_db=params["preprocessing"]["min_level_db"],
                          hop_length=params["preprocessing"]["hop_length"],
                          win_length=params["preprocessing"]["win_length"],

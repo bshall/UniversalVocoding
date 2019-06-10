@@ -1,6 +1,5 @@
 import librosa
 import numpy as np
-import scipy
 
 
 def load_wav(path, sample_rate):
@@ -23,16 +22,7 @@ def mulaw_decode(y, mu):
     return x
 
 
-def preemphasis(x, preemph):
-    return scipy.signal.lfilter([1, -preemph], [1], x)
-
-
-def deemphasis(x, preemph):
-    return scipy.signal.lfilter([1], [1, -preemph], x)
-
-
-def melspectrogram(y, preemph, sample_rate, num_mels, num_fft, min_level_db, hop_length, win_length, fmin):
-    y = preemphasis(y, preemph)
+def melspectrogram(y, sample_rate, num_mels, num_fft, min_level_db, hop_length, win_length, fmin):
     S = np.abs(librosa.stft(y, n_fft=num_fft, hop_length=hop_length, win_length=win_length))
     mel_basis = librosa.filters.mel(sample_rate, num_fft, n_mels=num_mels, fmin=fmin)
     S = np.dot(mel_basis, S)

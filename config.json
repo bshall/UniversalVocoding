@@ -7,7 +7,6 @@
         "min_level_db": -100,
         "hop_length": 200,
         "win_length": 800,
-        "preemph": 0.97,
         "bits": 9,
         "num_evaluation_utterances" : 20
     },
@@ -26,11 +25,6 @@
         "checkpoint_interval": 25000,
         "num_steps": 150000,
         "sample_frames": 40,
-        "audio_slice_frames": 8,
-        "generate": {
-            "batched": true,
-            "target": 8000,
-            "overlap": 400
-        }
+        "audio_slice_frames": 8
     }
 }
