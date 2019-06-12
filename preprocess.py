@@ -16,6 +16,7 @@ def process_wav(wav_path, audio_path, mel_path, params):
     wav = load_wav(wav_path, sample_rate=params["preprocessing"]["sample_rate"])
     wav /= np.abs(wav).max() * 0.999
     mel = melspectrogram(wav, sample_rate=params["preprocessing"]["sample_rate"],
+                         preemph=params["preprocessing"]["preemph"],
                          num_mels=params["preprocessing"]["num_mels"],
                          num_fft=params["preprocessing"]["num_fft"],
                          min_level_db=params["preprocessing"]["min_level_db"],

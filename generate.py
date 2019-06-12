@@ -33,12 +33,13 @@ if __name__ == "__main__":
     print("Load checkpoint from: {}:".format(args.checkpoint))
     checkpoint = torch.load(args.checkpoint, map_location=lambda storage, loc: storage)
     model.load_state_dict(checkpoint["model"])
-    model_step = checkpoint["steps"]
+    model_step = checkpoint["step"]
 
     wav = load_wav(args.wav_path, params["preprocessing"]["sample_rate"])
     utterance_id = os.path.basename(args.wav_path).split(".")[0]
     wav = wav / np.abs(wav).max() * 0.999
     mel = melspectrogram(wav, sample_rate=params["preprocessing"]["sample_rate"],
+                         preemph=params["preprocessing"]["preemph"],
                          num_mels=params["preprocessing"]["num_mels"],
                          num_fft=params["preprocessing"]["num_fft"],
                          min_level_db=params["preprocessing"]["min_level_db"],

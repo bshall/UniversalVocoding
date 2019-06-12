@@ -85,7 +85,7 @@ def train_fn(args, params):
             global_step += 1
 
             if global_step % params["vocoder"]["checkpoint_interval"] == 0:
-                save_checkpoint(model, global_step, args.checkpoint_dir)
+                save_checkpoint(model, optimizer, scheduler, global_step, args.checkpoint_dir)
 
                 with open(os.path.join(args.data_dir, "test.txt"), encoding="utf-8") as f:
                     test_mel_paths = [line.strip().split("|")[2] for line in f]
