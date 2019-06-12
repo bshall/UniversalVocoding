@@ -1,10 +1,10 @@
 # Robust Universal Neural Vocoding
 
 A PyTorch implementation of [Robust Universal Neural Vocoding](https://arxiv.org/abs/1811.06292).
+Audio samples can be found [here](https://bshall.github.io/UniversalVocoding/).
+
 
 ![network](network.png?raw=true "Robust Universal Neural Vocoding")
-
-Audio samples can be found [here](https://bshall.github.io/UniversalVocoding/).
 
 ## Quick Start
 
