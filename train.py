@@ -14,9 +14,11 @@ from dataset import VocoderDataset
 from model import Vocoder
 
 
-def save_checkpoint(model, step, checkpoint_dir):
+def save_checkpoint(model, optimizer, scheduler, step, checkpoint_dir):
     checkpoint_state = {
         "model": model.state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "scheduler": scheduler.state_dict(),
         "step": step}
     checkpoint_path = os.path.join(
         checkpoint_dir, "model.ckpt-{}.pt".format(step))
@@ -44,6 +46,8 @@ def train_fn(args, params):
         print("Resume checkpoint from: {}:".format(args.resume))
         checkpoint = torch.load(args.resume, map_location=lambda storage, loc: storage)
         model.load_state_dict(checkpoint["model"])
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        scheduler.load_state_dict(checkpoint["scheduler"])
         global_step = checkpoint["step"]
     else:
         global_step = 0
@@ -81,7 +85,7 @@ def train_fn(args, params):
             global_step += 1
 
             if global_step % params["vocoder"]["checkpoint_interval"] == 0:
-                save_checkpoint(model, global_step, args.checkpoint_dir)
+                save_checkpoint(model, optimizer, scheduler, global_step, args.checkpoint_dir)
 
                 with open(os.path.join(args.data_dir, "test.txt"), encoding="utf-8") as f:
                     test_mel_paths = [line.strip().split("|")[2] for line in f]
@@ -89,9 +93,7 @@ def train_fn(args, params):
                 for mel_path in test_mel_paths:
                     utterance_id = os.path.basename(mel_path).split(".")[0]
                     mel = torch.FloatTensor(np.load(mel_path)).unsqueeze(0).to(device)
-                    output = model.generate(mel, params["vocoder"]["generate"]["batched"],
-                                            params["vocoder"]["generate"]["target"],
-                                            params["vocoder"]["generate"]["overlap"])
+                    output = model.generate(mel)
                     path = os.path.join(args.gen_dir, "gen_{}_model_steps_{}.wav".format(utterance_id, global_step))
                     save_wav(path, output, params["preprocessing"]["sample_rate"])
 
