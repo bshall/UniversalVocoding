@@ -2,6 +2,10 @@
 
 A PyTorch implementation of [Robust Universal Neural Vocoding](https://arxiv.org/abs/1811.06292).
 
+![network](network.png?raw=true "Robust Universal Neural Vocoding")
+
+Audio samples can be found [here](https://bshall.github.io/UniversalVocoding/).
+
 ## Quick Start
 
 1. Ensure you have Python 3 and PyTorch 1.
@@ -29,3 +33,18 @@ A PyTorch implementation of [Robust Universal Neural Vocoding](https://arxiv.org
   ```
   python train.py
   ```
+  
+7. Generate:
+  ```
+  python generate.py --checkpoint=/path/to/checkpoint.pt --wav-path=/path/to/wav.wav
+  ```
+  
+## Notable Differences from the Paper
+
+1. Trained on 16kHz audio from 102 different speakers ([ZeroSpeech 2019: TTS without T](https://zerospeech.com/2019/) English dataset)
+2. The model generates 9-bit mu-law audio (planning on training a 10-bit model soon)
+3. Uses an embedding layer instead of one-hot encoding
+
+### Acknowlegements
+
+- https://github.com/fatchord/WaveRNN
