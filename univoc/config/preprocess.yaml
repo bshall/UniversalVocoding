@@ -2,3 +2,4 @@ defaults:
   - config
 
 in_dir: ???
+out_dir: ???

@@ -67,7 +67,7 @@ def train_model(cfg):
     else:
         global_step = 0
 
-    dataset_root = Path(utils.to_absolute_path("datasets"))
+    dataset_root = Path(utils.to_absolute_path(cfg.dataset_dir))
     dataset = VocoderDataset(
         dataset_root,
         sample_frames=cfg.train.sample_frames,

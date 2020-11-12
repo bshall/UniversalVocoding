@@ -56,11 +56,11 @@ tar -xvjf LJSpeech-1.1.tar.bz2
 4. Download the train split here and extract it in the root directory of the repo. 
 5. Extract Mel spectrograms and preprocess audio:
 ```
-python preprocess.py in_dir=path/to/LJSpeech-1.1
+python preprocess.py in_dir=path/to/LJSpeech-1.1 out_dir=datasets/LJSpeech-1.1
 ```
 6. Train the model:
 ```
-python train.py checkpoint_dir=ljspeech
+python train.py checkpoint_dir=ljspeech dataset_dir=datasets/LJSpeech-1.1
 ```
 
 ## Pretrained Models

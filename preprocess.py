@@ -81,7 +81,7 @@ def process_wav(wav_path, out_path, cfg):
 @hydra.main(config_path="univoc/config", config_name="preprocess")
 def preprocess_dataset(cfg):
     in_dir = Path(utils.to_absolute_path(cfg.in_dir))
-    out_dir = Path(utils.to_absolute_path("datasets"))
+    out_dir = Path(utils.to_absolute_path(cfg.out_dir))
     out_dir.mkdir(parents=True, exist_ok=True)
 
     executor = ProcessPoolExecutor(max_workers=cpu_count())
