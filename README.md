@@ -24,7 +24,9 @@ import soundfile as sf
 from univoc import Vocoder
 
 # download pretrained weights (and optionally move to GPU)
-vocoder = Vocoder.from_pretrained().cuda()
+vocoder = Vocoder.from_pretrained(
+    "https://github.com/bshall/UniversalVocoding/releases/download/v0.1/univoc-ljspeech-7mtpaq.pt"
+).cuda()
 
 # load log-Mel spectrogram from file or tts
 mel = ...
@@ -53,7 +55,7 @@ pip install -r requirements.txt
 wget https://data.keithito.com/data/speech/LJSpeech-1.1.tar.bz2
 tar -xvjf LJSpeech-1.1.tar.bz2
 ```
-4. Download the train split here and extract it in the root directory of the repo. 
+4. Download the train split [here](https://github.com/bshall/UniversalVocoding/releases/tag/v0.2) and extract it in the root directory of the repo. 
 5. Extract Mel spectrograms and preprocess audio:
 ```
 python preprocess.py in_dir=path/to/LJSpeech-1.1 out_dir=datasets/LJSpeech-1.1
@@ -65,12 +67,12 @@ python train.py checkpoint_dir=ljspeech dataset_dir=datasets/LJSpeech-1.1
 
 ## Pretrained Models
 
-Pretrained weights for the 10-bit LJ-Speech model are available [here]().
+Pretrained weights for the 10-bit LJ-Speech model are available [here](https://github.com/bshall/UniversalVocoding/releases/tag/v0.2).
 
 ## Notable Differences from the Paper
 
 1. Trained on 16kHz audio from a single speaker. For an older version trained on 102 different speakers form the [ZeroSpeech 2019: TTS without T](https://zerospeech.com/2019/) English dataset click [here](https://github.com/bshall/UniversalVocoding/releases/tag/v0.1).
-2. Uses an embedding layer instead of one-hot encoding
+2. Uses an embedding layer instead of one-hot encoding.
 
 ### Acknowlegements
 
