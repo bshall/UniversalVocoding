@@ -1,0 +1,5 @@
+defaults:
+  - config
+
+resume: false
+checkpoint_dir: ???

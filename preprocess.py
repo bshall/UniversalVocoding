@@ -1,93 +1,114 @@
-import argparse
-import os
-import numpy as np
+from pathlib import Path
+import hydra
+import hydra.utils as utils
+
 import json
+import librosa
+import numpy as np
+import pyloudnorm as pyln
 from multiprocessing import cpu_count
 from concurrent.futures import ProcessPoolExecutor
-from functools import partial
 from tqdm import tqdm
-from utils import load_wav, mulaw_encode, melspectrogram
-import random
-import glob
-from itertools import chain
 
 
-def process_wav(wav_path, audio_path, mel_path, params):
-    wav = load_wav(wav_path, sample_rate=params["preprocessing"]["sample_rate"])
-    wav = wav / np.abs(wav).max() * 0.999
-    mel = melspectrogram(wav, sample_rate=params["preprocessing"]["sample_rate"],
-                         preemph=params["preprocessing"]["preemph"],
-                         num_mels=params["preprocessing"]["num_mels"],
-                         num_fft=params["preprocessing"]["num_fft"],
-                         min_level_db=params["preprocessing"]["min_level_db"],
-                         hop_length=params["preprocessing"]["hop_length"],
-                         win_length=params["preprocessing"]["win_length"],
-                         fmin=params["preprocessing"]["fmin"])
+def melspectrogram(
+    wav,
+    sr=16000,
+    hop_length=200,
+    win_length=800,
+    n_fft=2048,
+    n_mels=128,
+    fmin=50,
+    preemph=0.97,
+    top_db=80,
+    ref_db=20,
+):
+    mel = librosa.feature.melspectrogram(
+        librosa.effects.preemphasis(wav, coef=preemph),
+        sr=sr,
+        hop_length=hop_length,
+        win_length=win_length,
+        n_fft=n_fft,
+        n_mels=n_mels,
+        fmin=fmin,
+        norm=1,
+        power=1,
+    )
+    logmel = librosa.amplitude_to_db(mel, top_db=None) - ref_db
+    logmel = np.maximum(logmel, -top_db)
+    return logmel / top_db
 
-    length_diff = len(mel) * params["preprocessing"]["hop_length"] - len(wav)
-    wav = np.pad(wav, (0, length_diff), "constant")
 
-    pad = (params["vocoder"]["sample_frames"] - params["vocoder"]["audio_slice_frames"]) // 2
-    mel = np.pad(mel, ((pad,), (0,)), "constant")
-    wav = np.pad(wav, (pad * params["preprocessing"]["hop_length"],), "constant")
-    wav = mulaw_encode(wav, mu=2 ** params["preprocessing"]["bits"])
-
-    speaker = os.path.splitext(os.path.split(wav_path)[-1])[0].split("_")[0]
-    np.save(audio_path, wav)
-    np.save(mel_path, mel)
-    return speaker, audio_path, mel_path, len(mel)
+def mu_compress(wav, hop_length=200, frame_length=800, bits=8):
+    wav = np.pad(wav, (frame_length // 2,), mode="reflect")
+    wav = wav[: ((wav.shape[0] - frame_length) // hop_length + 1) * hop_length]
+    wav = 2 ** (bits - 1) + librosa.mu_compress(wav, mu=2 ** bits - 1)
+    return wav
 
 
-def preprocess(wav_dirs, out_dir, num_workers, params):
-    audio_out_dir = os.path.join(out_dir, "audio")
-    mel_out_dir = os.path.join(out_dir, "mels")
-    os.makedirs(out_dir, exist_ok=True)
-    os.makedirs(audio_out_dir, exist_ok=True)
-    os.makedirs(mel_out_dir, exist_ok=True)
+def process_wav(wav_path, out_path, cfg):
+    meter = pyln.Meter(cfg.sr)
+    wav, _ = librosa.load(wav_path.with_suffix(".wav"), sr=cfg.sr)
+    loudness = meter.integrated_loudness(wav)
+    wav = pyln.normalize.loudness(wav, loudness, -24)
+    if (peak := np.abs(wav).max()) >= 1:
+        wav = wav / peak * 0.999
 
-    executor = ProcessPoolExecutor(max_workers=num_workers)
+    logmel = melspectrogram(
+        wav,
+        sr=cfg.sr,
+        hop_length=cfg.hop_length,
+        win_length=cfg.win_length,
+        n_fft=cfg.n_fft,
+        n_mels=cfg.n_mels,
+        fmin=cfg.fmin,
+        preemph=cfg.preemph,
+        top_db=cfg.top_db,
+    )
+
+    wav = mu_compress(
+        wav,
+        hop_length=cfg.hop_length,
+        frame_length=cfg.win_length,
+        bits=cfg.mulaw.bits,
+    )
+
+    np.save(out_path.with_suffix(".mel.npy"), logmel)
+    np.save(out_path.with_suffix(".wav.npy"), wav)
+    return out_path, logmel.shape[-1]
+
+
+@hydra.main(config_path="univoc/config", config_name="preprocess")
+def preprocess_dataset(cfg):
+    in_dir = Path(utils.to_absolute_path(cfg.in_dir))
+    out_dir = Path(utils.to_absolute_path("datasets"))
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    executor = ProcessPoolExecutor(max_workers=cpu_count())
+    print("Extracting features for train set")
     futures = []
-    wav_paths = chain.from_iterable(glob.iglob("{}/*.wav".format(dir), recursive=True) for dir in wav_dirs)
-    for wav_path in wav_paths:
-        fid = os.path.basename(wav_path).replace(".wav", ".npy")
-        audio_path = os.path.join(audio_out_dir, fid)
-        mel_path = os.path.join(mel_out_dir, fid)
-        futures.append(executor.submit(partial(process_wav, wav_path, audio_path, mel_path, params)))
+    split_path = out_dir / "train"
+    with open(split_path.with_suffix(".json")) as file:
+        metadata = json.load(file)
+        for in_path, out_path in metadata:
+            wav_path = in_dir / in_path
+            out_path = out_dir / out_path
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            futures.append(
+                executor.submit(process_wav, wav_path, out_path, cfg.preprocess)
+            )
 
-    metadata = [future.result() for future in tqdm(futures)]
-    write_metadata(metadata, out_dir, params)
+    results = [future.result() for future in tqdm(futures)]
 
+    lengths = {result[0].stem: result[1] for result in results}
+    with open(out_dir / "lengths.json", "w") as file:
+        json.dump(lengths, file, indent=4)
 
-def write_metadata(metadata, out_dir, params):
-    random.shuffle(metadata)
-    test = metadata[-params["preprocessing"]["num_evaluation_utterances"]:]
-    train = metadata[:-params["preprocessing"]["num_evaluation_utterances"]]
-
-    with open(os.path.join(out_dir, "test.txt"), "w", encoding="utf-8") as f:
-        for m in test:
-            f.write("|".join([str(x) for x in m]) + "\n")
-
-    with open(os.path.join(out_dir, "train.txt"), "w", encoding="utf-8") as f:
-        for m in train:
-            f.write("|".join([str(x) for x in m]) + "\n")
-
-    frames = sum([m[3] for m in metadata])
-    frame_shift_ms = params["preprocessing"]["hop_length"] / params["preprocessing"]["sample_rate"]
+    frames = sum(lengths.values())
+    frame_shift_ms = cfg.preprocess.hop_length / cfg.preprocess.sr
     hours = frames * frame_shift_ms / 3600
-    print('Wrote %d utterances, %d frames (%.2f hours)' % (len(metadata), frames, hours))
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--output", default="data")
-    parser.add_argument("--num-workers", type=int, default=cpu_count())
-    parser.add_argument("--language", type=str, default="./english")
-    with open("config.json") as f:
-        params = json.load(f)
-    args = parser.parse_args()
-    wav_dirs = [os.path.join(args.language, "train", "unit"), os.path.join(args.language, "train", "voice")]
-    preprocess(wav_dirs, args.output, args.num_workers, params)
+    print(f"Wrote {len(lengths)} utterances, {frames} frames ({hours:.2f} hours)")
 
 
 if __name__ == "__main__":
-    main()
+    preprocess_dataset()

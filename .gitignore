@@ -90,12 +90,12 @@ ENV/
 env.bak/
 venv.bak/
 
+# vscode project settings
+.vscode
+
 # Spyder project settings
 .spyderproject
 .spyproject
-
-# Pycharm project settings
-.idea
 
 # Rope project settings
 .ropeproject
@@ -105,3 +105,20 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# Model checkpoints
+checkpoints/
+*.pt
+
+# Datasets and Preprocessed data
+datasets/
+*.npy
+
+# Submission
+*.wav
+
+# Hydra outputs
+outputs/
+
+# tensorboard outputs
+tensorboard/

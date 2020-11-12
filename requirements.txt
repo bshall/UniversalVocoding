@@ -1,4 +1,4 @@
-numpy>=1.16
-scipy>=1.2
-librosa==0.6.3
-tqdm
+numpy>=1.19.2
+librosa>=0.8.0
+tqdm>=4.50
+hydra-core>=1.0.3

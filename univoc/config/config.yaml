@@ -1,0 +1,36 @@
+# @package _group_
+preprocess:
+  sr: 16000
+  hop_length: 200
+  win_length: 800
+  n_fft: 2048
+  n_mels: 80
+  fmin: 50
+  preemph: 0.97
+  top_db: 80
+  ref_db: 20
+  mulaw:
+    bits: 10
+
+model:
+  n_mels: ${preprocess.n_mels}
+  conditioning_size: 128
+  embedding_dim: 256
+  rnn_size: 896
+  fc_size: 1024
+  bits: ${preprocess.mulaw.bits}
+  hop_length: ${preprocess.hop_length}
+  sr: ${preprocess.sr}
+
+train:
+  batch_size: 32
+  n_steps: 150000
+  sample_frames: 24
+  optimizer:
+    lr: 4e-4
+  scheduler:
+    step_size: 25000
+    gamma: 0.5
+  checkpoint_interval: 25000
+  n_workers: 8
+

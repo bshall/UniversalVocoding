@@ -1,115 +1,120 @@
-import argparse
-import os
-import json
+from pathlib import Path
+
+import hydra
+import hydra.utils as utils
 
 import numpy as np
 from tqdm import tqdm
+import json
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
+import torch.cuda.amp as amp
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
-from utils import save_wav
-from dataset import VocoderDataset
-from model import Vocoder
+from univoc import Vocoder, VocoderDataset
 
 
-def save_checkpoint(model, optimizer, scheduler, step, checkpoint_dir):
+def save_checkpoint(vocoder, optimizer, scheduler, scaler, step, checkpoint_dir):
     checkpoint_state = {
-        "model": model.state_dict(),
+        "model": vocoder.state_dict(),
         "optimizer": optimizer.state_dict(),
         "scheduler": scheduler.state_dict(),
-        "step": step}
-    checkpoint_path = os.path.join(
-        checkpoint_dir, "model.ckpt-{}.pt".format(step))
+        "scaler": scaler.state_dict(),
+        "step": step,
+    }
+    checkpoint_dir.mkdir(exist_ok=True, parents=True)
+    checkpoint_path = checkpoint_dir / f"model-{step}.pt"
     torch.save(checkpoint_state, checkpoint_path)
-    print("Saved checkpoint: {}".format(checkpoint_path))
+    print(f"Saved checkpoint: {checkpoint_path.stem}")
 
 
-def train_fn(args, params):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def load_checkpoint(vocoder, optimizer, scaler, scheduler, load_path):
+    print(f"Loading checkpoint from {load_path}")
+    checkpoint = torch.load(load_path)
+    vocoder.load_state_dict(checkpoint["model"])
+    optimizer.load_state_dict(checkpoint["optimizer"])
+    scaler.load_state_dict(checkpoint["scaler"])
+    scheduler.load_state_dict(checkpoint["scheduler"])
+    return checkpoint["step"]
 
-    model = Vocoder(mel_channels=params["preprocessing"]["num_mels"],
-                    conditioning_channels=params["vocoder"]["conditioning_channels"],
-                    embedding_dim=params["vocoder"]["embedding_dim"],
-                    rnn_channels=params["vocoder"]["rnn_channels"],
-                    fc_channels=params["vocoder"]["fc_channels"],
-                    bits=params["preprocessing"]["bits"],
-                    hop_length=params["preprocessing"]["hop_length"])
-    model.to(device)
-    print(model)
 
-    optimizer = optim.Adam(model.parameters(), lr=params["vocoder"]["learning_rate"])
-    scheduler = optim.lr_scheduler.StepLR(optimizer, params["vocoder"]["schedule"]["step_size"], params["vocoder"]["schedule"]["gamma"])
+@hydra.main(config_path="univoc/config", config_name="train")
+def train_model(cfg):
+    tensorboard_path = Path(utils.to_absolute_path("tensorboard")) / cfg.checkpoint_dir
+    checkpoint_dir = Path(utils.to_absolute_path(cfg.checkpoint_dir))
+    writer = SummaryWriter(tensorboard_path)
 
-    if args.resume is not None:
-        print("Resume checkpoint from: {}:".format(args.resume))
-        checkpoint = torch.load(args.resume, map_location=lambda storage, loc: storage)
-        model.load_state_dict(checkpoint["model"])
-        optimizer.load_state_dict(checkpoint["optimizer"])
-        scheduler.load_state_dict(checkpoint["scheduler"])
-        global_step = checkpoint["step"]
+    vocoder = Vocoder(**cfg.model).cuda()
+    optimizer = optim.Adam(vocoder.parameters(), lr=cfg.train.optimizer.lr)
+    scheduler = optim.lr_scheduler.StepLR(
+        optimizer,
+        cfg.train.scheduler.step_size,
+        cfg.train.scheduler.gamma,
+    )
+    scaler = amp.GradScaler()
+
+    if cfg.resume:
+        resume_path = utils.to_absolute_path(cfg.resume)
+        global_step = load_checkpoint(
+            vocoder=vocoder,
+            optimizer=optimizer,
+            scaler=scaler,
+            scheduler=scheduler,
+            load_path=resume_path,
+        )
     else:
         global_step = 0
 
-    train_dataset = VocoderDataset(meta_file=os.path.join(args.data_dir, "train.txt"),
-                                   sample_frames=params["vocoder"]["sample_frames"],
-                                   audio_slice_frames=params["vocoder"]["audio_slice_frames"],
-                                   hop_length=params["preprocessing"]["hop_length"],
-                                   bits=params["preprocessing"]["bits"])
+    dataset_root = Path(utils.to_absolute_path("datasets"))
+    dataset = VocoderDataset(
+        dataset_root,
+        sample_frames=cfg.train.sample_frames,
+        hop_length=cfg.preprocess.hop_length,
+    )
 
-    train_dataloader = DataLoader(train_dataset, batch_size=params["vocoder"]["batch_size"],
-                                  shuffle=True, num_workers=1,
-                                  pin_memory=True)
+    dataloader = DataLoader(
+        dataset,
+        batch_size=cfg.train.batch_size,
+        shuffle=True,
+        num_workers=cfg.train.n_workers,
+        pin_memory=True,
+        drop_last=True,
+    )
 
-    num_epochs = params["vocoder"]["num_steps"] // len(train_dataloader) + 1
-    start_epoch = global_step // len(train_dataloader) + 1
+    n_epochs = cfg.train.n_steps // len(dataloader) + 1
+    start_epoch = global_step // len(dataloader) + 1
 
-    for epoch in range(start_epoch, num_epochs + 1):
-        running_loss = 0
+    for epoch in range(start_epoch, n_epochs + 1):
+        average_loss = 0
 
-        for i, (audio, mels) in enumerate(tqdm(train_dataloader), 1):
-            audio, mels = audio.to(device), mels.to(device)
-
-            output = model(audio[:, :-1], mels)
-            loss = F.cross_entropy(output.transpose(1, 2), audio[:, 1:])
+        for i, (audio, mels) in enumerate(tqdm(dataloader), 1):
+            audio, mels = audio.cuda(), mels.cuda()
 
             optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            scheduler.step()
 
-            running_loss += loss.item()
-            average_loss = running_loss / i
+            with amp.autocast():
+                wav = vocoder(audio[:, :-1], mels)
+                loss = F.cross_entropy(wav.transpose(1, 2), audio[:, 1:])
+
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+            scheduler.step()
 
             global_step += 1
 
-            if global_step % params["vocoder"]["checkpoint_interval"] == 0:
-                save_checkpoint(model, optimizer, scheduler, global_step, args.checkpoint_dir)
+            average_loss += (loss.item() - average_loss) / i
 
-                with open(os.path.join(args.data_dir, "test.txt"), encoding="utf-8") as f:
-                    test_mel_paths = [line.strip().split("|")[2] for line in f]
+            if global_step % cfg.train.checkpoint_interval == 0:
+                save_checkpoint(
+                    vocoder, optimizer, scheduler, scaler, global_step, checkpoint_dir
+                )
 
-                for mel_path in test_mel_paths:
-                    utterance_id = os.path.basename(mel_path).split(".")[0]
-                    mel = torch.FloatTensor(np.load(mel_path)).unsqueeze(0).to(device)
-                    output = model.generate(mel)
-                    path = os.path.join(args.gen_dir, "gen_{}_model_steps_{}.wav".format(utterance_id, global_step))
-                    save_wav(path, output, params["preprocessing"]["sample_rate"])
-
-        print("epoch:{}, loss:{:.3f}".format(epoch, average_loss))
+        writer.add_scalar("loss", average_loss, global_step)
+        print(f"epoch:{epoch}, loss:{average_loss:.3f}, {scheduler.get_last_lr()}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--num_workers", type=int, default=4, help="Number of dataloader workers.")
-    parser.add_argument("--resume", type=str, default=None, help="Checkpoint path to resume")
-    parser.add_argument("--checkpoint_dir", type=str, default="checkpoints/", help="Directory to save checkpoints.")
-    parser.add_argument("--data_dir", type=str, default="./data")
-    parser.add_argument("--gen_dir", type=str, default="./generated")
-    args = parser.parse_args()
-    with open("config.json") as f:
-        params = json.load(f)
-    os.makedirs(args.checkpoint_dir, exist_ok=True)
-    os.makedirs(args.gen_dir, exist_ok=True)
-    train_fn(args, params)
+    train_model()
