@@ -11,7 +11,7 @@ Audio samples can be found [here](https://bshall.github.io/UniversalVocoding/).
 
 ## Quick Start
 
-Ensure you have Python 3.8 and PyTorch 1.7 or greater installed. Then install the package with:
+Ensure you have Python 3.6 and PyTorch 1.7 or greater installed. Then install the package with:
 ```
 pip install univoc
 ```
@@ -25,7 +25,7 @@ from univoc import Vocoder
 
 # download pretrained weights (and optionally move to GPU)
 vocoder = Vocoder.from_pretrained(
-    "https://github.com/bshall/UniversalVocoding/releases/download/v0.1/univoc-ljspeech-7mtpaq.pt"
+    "https://github.com/bshall/UniversalVocoding/releases/download/v0.2/univoc-ljspeech-7mtpaq.pt"
 ).cuda()
 
 # load log-Mel spectrogram from file or tts

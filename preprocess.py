@@ -51,7 +51,8 @@ def process_wav(wav_path, out_path, cfg):
     wav, _ = librosa.load(wav_path.with_suffix(".wav"), sr=cfg.sr)
     loudness = meter.integrated_loudness(wav)
     wav = pyln.normalize.loudness(wav, loudness, -24)
-    if (peak := np.abs(wav).max()) >= 1:
+    peak = np.abs(wav).max()
+    if peak >= 1:
         wav = wav / peak * 0.999
 
     logmel = melspectrogram(

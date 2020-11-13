@@ -1,4 +1,2 @@
 recursive-include univoc *.yaml
 include LICENSE
-global-exclude *.pyc
-global-exclude __pycache__

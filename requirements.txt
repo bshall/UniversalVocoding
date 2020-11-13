@@ -1,6 +1,7 @@
-numpy>=1.19.2
 librosa>=0.8.0
-tqdm>=4.50
+numpy>=1.18.0
+tqdm>=4.41
 hydra-core>=1.0.3
 pyloudnorm>=0.1.0
 tensorboard>=2.3.0
+importlib-resources
