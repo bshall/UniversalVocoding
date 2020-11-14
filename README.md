@@ -1,7 +1,11 @@
+<p align="center">
+    <a href="https://colab.research.google.com/github/bshall/Tacotron/blob/main/tacotron-demo.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+</p>
+
 # Towards Achieving Robust Universal Neural Vocoding
 
 A PyTorch implementation of [Towards Achieving Robust Universal Neural Vocoding](https://arxiv.org/abs/1811.06292).
-Audio samples can be found [here](https://bshall.github.io/UniversalVocoding/).
+Audio samples can be found [here](https://bshall.github.io/UniversalVocoding/). Colab demo can be found [here]("https://colab.research.google.com/github/bshall/Tacotron/blob/main/tacotron-demo.ipynb"). Accompanying Tacotron implementation can be found [here](https://github.com/bshall/Tacotron)
 
 <div align="center">
     <img width="788" height="508" alt="Architecture of the vocoder." 
@@ -18,6 +22,10 @@ pip install univoc
 
 ## Example Usage
 
+<p align="center">
+    <a href="https://colab.research.google.com/github/bshall/Tacotron/blob/main/tacotron-demo.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+</p>
+
 ```python
 import torch
 import soundfile as sf
@@ -28,7 +36,7 @@ vocoder = Vocoder.from_pretrained(
     "https://github.com/bshall/UniversalVocoding/releases/download/v0.2/univoc-ljspeech-7mtpaq.pt"
 ).cuda()
 
-# load log-Mel spectrogram from file or tts
+# load log-Mel spectrogram from file or from tts (see https://github.com/bshall/Tacotron for example)
 mel = ...
 
 # generate waveform
